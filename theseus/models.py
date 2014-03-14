@@ -34,7 +34,7 @@ def convert_ids(model, new_id_style):
 
     # the regex to separate the base id, the chirality ('_L') and the compartment ('_c')
     reg = re.compile(r'(.*?)(?:(.*[^_])_([LD]))?[_\(\[]([a-z])[_\)\]]?$')
-            
+    
     def id_for_new_id_style(old_id, is_metabolite=False):
         """ Get the new style id"""
         
@@ -142,28 +142,47 @@ def turn_off_carbon_sources(model):
             reaction.lower_bound = 0
     return model
 
-def setup_model(model_name, aerobic=True, sur=10, max_our=10, substrate='Glucose'):
+def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10, id_style='cobrapy'):
+    """Set up the model with environmntal parameters.
 
-    model = load_model(model_name)
+    model: a cobra model
+    substrate_reactions: A single reaction id, list of reaction ids, or dictionary with reaction
+    ids as keys and max substrate uptakes as keys. If a list or single id is
+    given, then each substrate will be limited to /sur/
+    aerobic: True or False
+    sur: substrate uptake rate. Ignored if substrate_reactions is a dictionary.
+    max_our: Max oxygen uptake rate.
+    id_style: 'cobrapy' or 'simpheny'.
 
-    raise NotImplementedError()
-                    
-    model.reactions.get_by_id(def_substrate).lower_bound = 0
-    model.reactions.get_by_id(substrate).lower_bound = -sur
+    """
+    if id_style=='cobrapy': o2 = 'EX_o2_e'
+    elif id_style=='simpheny': o2 = 'EX_o2(e)'
+    else: raise Exception('Invalid id_style')
+
+    if isinstance(substrate_reactions, dict):
+        for r, v in substrate_reactions.iteritems():
+            model.reactions.get_by_id(r).lower_bound = -abs(v)
+    elif isinstance(substrate_reactions, list):
+        for r in substrate_reactions:
+            model.reactions.get_by_id(r).lower_bound = -abs(sur)
+    elif isinstance(substrate_reactions, str):                
+        model.reactions.get_by_id(substrate_reactions).lower_bound = -abs(sur)
+    else: raise Exception('bad substrate_reactions argument')
+        
     if aerobic:
-        model.reactions.get_by_id(o2).lower_bound = -our
+        model.reactions.get_by_id(o2).lower_bound = -abs(max_our)
     else:
         model.reactions.get_by_id(o2).lower_bound = 0
         
     # model specific setup
-    if (model_name=='iJO1366' or model_name=='iJO1366') and aerobic==False:
+    if str(model)=='iJO1366' and aerobic==False:
         for r in ['CAT', 'SPODM', 'SPODMpp']:
             model.reactions.get_by_id(r).lower_bound = 0
             model.reactions.get_by_id(r).upper_bound = 0
 
-        # TODO hydrogen reaction for ijo
+    # TODO hydrogen reaction for ijo
             
-    if model_name=='iMM904' and aerobic==False:
+    if str(model)=='iMM904' and aerobic==False:
         necessary_ex = ['EX_ergst(e)', 'EX_zymst(e)', 'EX_hdcea(e)',
                         'EX_ocdca(e)', 'EX_ocdcea(e)', 'EX_ocdcya(e)']
         for r in necessary_ex:
@@ -171,7 +190,7 @@ def setup_model(model_name, aerobic=True, sur=10, max_our=10, substrate='Glucose
             rxn.lower_bound = -1000
             rxn.upper_bound = 1000
 
-    return model, biomass_reaction
+    return model
 
 def turn_on_subsystem(model, subsytem):
     raise NotImplementedError()

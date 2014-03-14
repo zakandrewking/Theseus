@@ -57,6 +57,22 @@ def test_turn_off_carbon_sources():
         model = turn_off_carbon_sources(model)
         assert model.reactions.get_by_id('EX_glc_e').lower_bound==0
         assert model.reactions.get_by_id('EX_ac_e').lower_bound==0
+
+def test_setup_model():
+    model = load_model('iJO1366')
+    model = setup_model(model, 'EX_glc_e', aerobic=False, sur=18)
+    assert model.reactions.get_by_id('EX_glc_e').lower_bound==-18
+    assert model.reactions.get_by_id('EX_o2_e').lower_bound==0
+    assert model.reactions.get_by_id('CAT').upper_bound==0
+    assert model.reactions.get_by_id('SPODM').upper_bound==0
+    
+    model = setup_model(model, ['EX_glc_e', 'EX_xyl__D_e'], sur=-18)
+    assert model.reactions.get_by_id('EX_glc_e').lower_bound==-18
+    assert model.reactions.get_by_id('EX_xyl__D_e').lower_bound==-18
+    
+    model = setup_model(model, {'EX_glc_e':-5, 'EX_xyl__D_e':5}, sur=999)
+    assert model.reactions.get_by_id('EX_glc_e').lower_bound==-5
+    assert model.reactions.get_by_id('EX_xyl__D_e').lower_bound==-5
         
 def test_turn_on_subsystem():
     with pytest.raises(NotImplementedError):
