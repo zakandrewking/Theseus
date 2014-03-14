@@ -44,6 +44,20 @@ def test_convert_ids():
         assert 'lac-D[e]' in [str(x) for x in model.metabolites]
         assert ['__' not in str(x) for x in model.metabolites]
 
+def test_get_formulas_from_names():
+    model = load_model('iAF1260')
+    assert model.metabolites.get_by_id('acald_c').formula == 'C2H4O'
+        
+def test_turn_off_carbon_sources():
+    for model_name in 'iJO1366', 'iAF1260', 'E coli core':
+        print model_name
+        model = load_model(model_name)
+        model.reactions.get_by_id('EX_glc_e').lower_bound = -100
+        model.reactions.get_by_id('EX_ac_e').lower_bound = -100
+        model = turn_off_carbon_sources(model)
+        assert model.reactions.get_by_id('EX_glc_e').lower_bound==0
+        assert model.reactions.get_by_id('EX_ac_e').lower_bound==0
+        
 def test_turn_on_subsystem():
     with pytest.raises(NotImplementedError):
         turn_on_subsystem(None, None)

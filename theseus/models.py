@@ -76,13 +76,17 @@ def convert_ids(model, new_id_style):
     for reaction in model.reactions:
         reaction.id = fix_legacy_id(reaction.id, use_hyphens=False)
     model.reactions._generate_index()
-    # remove boundary metabolites (end in _b and only present in exchanges)
-    for metabolite in model.metabolites:
+    # remove boundary metabolites (end in _b and only present in exchanges) . Be
+    # sure to loop through a static list of ids so the list does not get
+    # shorter as the metabolites are deleted
+    for metabolite_id in [str(x) for x in model.metabolites]:
+        metabolite = model.metabolites.get_by_id(metabolite_id)
         if not metabolite.id.endswith("_b"):
             continue
-        if len(metabolite._reaction) == 1:
-            if list(metabolite._reaction)[0].id.startswith("EX_"):
+        for reaction in list(metabolite._reaction):
+            if reaction.id.startswith("EX_"):
                 metabolite.remove_from_model()
+                break
     model.metabolites._generate_index()
 
     # separate ids and compartments, and convert to the new_id_style
@@ -114,6 +118,28 @@ def load_model(name, id_style='cobrapy'):
 
     # convert the ids
     model = convert_ids(model, id_style)
+
+    # extract metabolite formulas from names (e.g. for iAF1260)
+    model = get_formulas_from_names(model)
+    
+    # turn off carbon sources
+    model = turn_off_carbon_sources(model)
+    return model
+
+def get_formulas_from_names(model):
+    reg = re.compile(r'.*_([A-Za-z0-9]+)$')
+    for metabolite in model.metabolites:
+        if metabolite.formula!='': continue
+        m = reg.match(metabolite.name)
+        if m:
+            metabolite.formula = m.group(1)
+    return model
+
+def turn_off_carbon_sources(model):
+    for reaction in model.reactions:
+        if 'EX_' not in str(reaction): continue
+        if carbons_for_exchange_reaction(reaction) > 0:
+            reaction.lower_bound = 0
     return model
 
 def setup_model(model_name, aerobic=True, sur=10, max_our=10, substrate='Glucose'):
@@ -158,7 +184,7 @@ def turn_on_subsystem(model, subsytem):
 def carbons_for_exchange_reaction(reaction):
     if len(reaction._metabolites) > 1:
         raise Exception('%s not an exchange reaction' % str(reaction))
-
+    
     metabolite = reaction._metabolites.iterkeys().next()
     match = re.match(r'C([0-9]+)', str(metabolite.formula))
     try:
