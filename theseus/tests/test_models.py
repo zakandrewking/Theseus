@@ -81,3 +81,24 @@ def test_turn_on_subsystem():
 def test_carbons_for_exchange_reaction():
     model = load_model('iJO1366')
     assert carbons_for_exchange_reaction(model.reactions.get_by_id('EX_glc_e'))==6
+
+def test_add_pathway():
+    new = [ { 'ggpp_c': 'C20H33O7P2',
+              'phyto_c': 'C40H64',
+              'lyco_c': 'C40H56',
+              'lyco_e': 'C40H56' },
+            { 'FPS': { 'ipdp_c': -2,
+                       'ppi_c': 1,
+                       'grdp_c': 1 },
+              'CRTE': { 'ipdp_c': -1,
+                        'frdp_c': -1,
+                        'ggpp_c': 1,
+                        'ppi_c': 1 }},
+            { 'FPS': 0,
+              'CRTE': 0 },
+            { 'FPS': 'Lycopene production',
+              'CRTE': 'Lycopene production'} ]
+    model = load_model('iJO1366')
+    model = add_pathway(model, *new)
+    assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
+    assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)

@@ -24,6 +24,39 @@ def check_for_model(name):
             return x
     return None
 
+# the regex to separate the base id, the chirality ('_L') and the compartment ('_c')
+reg = re.compile(r'(.*?)(?:(.*[^_])_([LD]))?[_\(\[]([a-z])[_\)\]]?$')
+def id_for_new_id_style(old_id, is_metabolite=False, new_id_style='cobrapy'):
+    """ Get the new style id"""
+
+    def join_parts(the_id, the_compartment):
+        if (new_id_style.lower()=='cobrapy'):
+            if the_compartment:
+                the_id = the_id+'_'+the_compartment
+            the_id = the_id.replace('-', '__')
+        elif (new_id_style.lower()=='simpheny'):
+            if the_compartment and is_metabolite:
+                the_id = the_id+'['+the_compartment+']'
+            elif the_compartment:
+                the_id = the_id+'('+the_compartment+')'
+            the_id = the_id.replace('__', '-')
+        else:
+            raise Exception('Invalid id style')
+        return the_id
+
+    # separate the base id, the chirality ('_L') and the compartment ('_c')
+    m = reg.match(old_id)
+    if m is None:
+        # still change the underscore/dash
+        new_id = join_parts(old_id, None)
+    elif m.group(2) is None:
+        new_id = join_parts(m.group(1), m.group(4))
+    else:
+        # if the chirality is not joined by two underscores, then fix that
+        a = "__".join(m.groups()[1:3])
+        new_id = join_parts(a, m.group(4))
+    return new_id
+
 def convert_ids(model, new_id_style):
     """Converts metabolite and reaction ids to the new style. Style options:
 
@@ -31,40 +64,6 @@ def convert_ids(model, new_id_style):
     simpheny: EX_lac-L(e)
 
     """
-
-    # the regex to separate the base id, the chirality ('_L') and the compartment ('_c')
-    reg = re.compile(r'(.*?)(?:(.*[^_])_([LD]))?[_\(\[]([a-z])[_\)\]]?$')
-    
-    def id_for_new_id_style(old_id, is_metabolite=False):
-        """ Get the new style id"""
-        
-        def join_parts(the_id, the_compartment):
-            if (new_id_style.lower()=='cobrapy'):
-                if the_compartment:
-                    the_id = the_id+'_'+the_compartment
-                the_id = the_id.replace('-', '__')
-            elif (new_id_style.lower()=='simpheny'):
-                if the_compartment and is_metabolite:
-                    the_id = the_id+'['+the_compartment+']'
-                elif the_compartment:
-                    the_id = the_id+'('+the_compartment+')'
-                the_id = the_id.replace('__', '-')
-            else:
-                raise Exception('Invalid id style')
-            return the_id
-
-        # separate the base id, the chirality ('_L') and the compartment ('_c')
-        m = reg.match(old_id)
-        if m is None:
-            # still change the underscore/dash
-            new_id = join_parts(old_id, None)
-        elif m.group(2) is None:
-            new_id = join_parts(m.group(1), m.group(4))
-        else:
-            # if the chirality is not joined by two underscores, then fix that
-            a = "__".join(m.groups()[1:3])
-            new_id = join_parts(a, m.group(4))
-        return new_id
 
     # loop through the ids:
 
@@ -91,10 +90,10 @@ def convert_ids(model, new_id_style):
 
     # separate ids and compartments, and convert to the new_id_style
     for reaction in model.reactions:
-        reaction.id = id_for_new_id_style(reaction.id)
+        reaction.id = id_for_new_id_style(reaction.id, new_id_style=new_id_style)
     model.reactions._generate_index()
     for metabolite in model.metabolites:
-        metabolite.id = id_for_new_id_style(metabolite.id, is_metabolite=True)
+        metabolite.id = id_for_new_id_style(metabolite.id, is_metabolite=True, new_id_style=new_id_style)
     model.metabolites._generate_index()
     
     return model
@@ -179,6 +178,8 @@ def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10, id
         for r in ['CAT', 'SPODM', 'SPODMpp']:
             model.reactions.get_by_id(r).lower_bound = 0
             model.reactions.get_by_id(r).upper_bound = 0
+        for r in ['ACACT2r']:
+            model.reactions.get_by_id(r).upper_bound = 0
 
     # TODO hydrogen reaction for ijo
             
@@ -210,3 +211,42 @@ def carbons_for_exchange_reaction(reaction):
         return int(match.group(1))
     except AttributeError:
         return 0
+
+def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems):
+    """Add a pathway to the model
+
+    new_metabolites: e.g. { 'ggpp_c': 'C20H33O7P2',
+                            'phyto_c': 'C40H64',
+                            'lyco_c': 'C40H56',
+                            'lyco_e': 'C40H56' }
+    new_reactions: e.g. { 'FPS': { 'ipdp_c': -2,
+                                   'ppi_c': 1,
+                                   'grdp_c': 1 },
+                          'CRTE': { 'ipdp_c': -1,
+                                    'frdp_c': -1,
+                                    'ggpp_c': 1,
+                                    'ppi_c': 1 } }
+    reversibility: e.g. { 'FPS': 0,
+                           'CRTE': 0 }
+    subsystems: e.g. { 'FPS': 'Lycopene production',
+                       'CRTE': 'Lycopene production' }
+
+    """
+    
+    for k, v in new_metabolites.iteritems():
+        m = cobra.Metabolite(id=k, formula=v)
+        model.add_metabolites([m])
+        
+    for name, mets in new_reactions.iteritems():
+        r = cobra.Reaction(name=name)
+        m_obj = {}
+        for k, v in mets.iteritems():
+            m_obj[model.metabolites.get_by_id(k)] = v
+        r.add_metabolites(m_obj)
+        r.reversibility = reversibility[name]
+        if subsystems:
+            r.subsystem = subsystems[name]
+        r.lower_bound = 0
+        r.upper_bound = 0
+        model.add_reaction(r)
+    return model
