@@ -18,6 +18,10 @@ def test_load_model():
     model = load_model('iJO1366')
     assert isinstance(model, cobra.core.Model)
 
+def test_id_for_new_id_style():
+    assert(id_for_new_id_style('EX_glc(r)', is_metabolite=False)=='EX_glc_r')
+    assert(id_for_new_id_style('glucose[r]', is_metabolite=True)=='glucose_r')
+    
 def test_convert_ids():
     for model_name in 'iJO1366', 'iAF1260', 'E coli core':
         print "\n"
@@ -98,7 +102,17 @@ def test_add_pathway():
               'CRTE': 0 },
             { 'FPS': 'Lycopene production',
               'CRTE': 'Lycopene production'} ]
-    model = load_model('iJO1366')
-    model = add_pathway(model, *new)
+    m = load_model('iJO1366')
+    model = add_pathway(m.copy(), *new)
+    assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
+    assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)
+
+    del new[2]['FPS']
+    model = add_pathway(m.copy(), *new)
+    assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
+    assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)
+
+    new = new[:2] + [None]*2
+    model = add_pathway(m.copy(), *new)
     assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
     assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)

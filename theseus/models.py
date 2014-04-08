@@ -243,8 +243,9 @@ def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems
         for k, v in mets.iteritems():
             m_obj[model.metabolites.get_by_id(k)] = v
         r.add_metabolites(m_obj)
-        r.reversibility = reversibility[name]
-        if subsystems:
+        if reversibility and name in reversibility:
+            r.reversibility = reversibility[name]
+        if subsystems and name in subsystems:
             r.subsystem = subsystems[name]
         r.lower_bound = 0
         r.upper_bound = 0
