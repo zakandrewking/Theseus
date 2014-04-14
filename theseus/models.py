@@ -212,8 +212,8 @@ def carbons_for_exchange_reaction(reaction):
     except AttributeError:
         return 0
 
-def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems):
-    """Add a pathway to the model
+def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems, bounds):
+    """Add a pathway to the model. Reversibility defaults to reversible (1).
 
     new_metabolites: e.g. { 'ggpp_c': 'C20H33O7P2',
                             'phyto_c': 'C40H64',
@@ -243,11 +243,16 @@ def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems
         for k, v in mets.iteritems():
             m_obj[model.metabolites.get_by_id(k)] = v
         r.add_metabolites(m_obj)
-        if reversibility and name in reversibility:
+        if reversibility and (name in reversibility):
             r.reversibility = reversibility[name]
-        if subsystems and name in subsystems:
+        else:
+            r.reversibility = 1
+        if bounds and (name in bounds):
+            r.lower_bound, r.upper_bound = bounds[name]
+        else:
+            r.upper_bound = 1000
+            r.lower_bound = -1000 if r.reversibility==1 else 0
+        if subsystems and (name in subsystems):
             r.subsystem = subsystems[name]
-        r.lower_bound = 0
-        r.upper_bound = 0
         model.add_reaction(r)
     return model

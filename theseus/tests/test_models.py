@@ -101,18 +101,28 @@ def test_add_pathway():
             { 'FPS': 0,
               'CRTE': 0 },
             { 'FPS': 'Lycopene production',
-              'CRTE': 'Lycopene production'} ]
+              'CRTE': 'Lycopene production'},
+            { 'FPS': (20,1000) } ]
     m = load_model('iJO1366')
     model = add_pathway(m.copy(), *new)
     assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
+    reaction = model.reactions.get_by_id('CRTE')
     assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)
+    assert reaction.reversibility == 0
+    assert reaction.upper_bound == 1000
+    assert reaction.lower_bound == 0
+    assert model.reactions.get_by_id('FPS').lower_bound==20
 
     del new[2]['FPS']
     model = add_pathway(m.copy(), *new)
     assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
     assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)
 
-    new = new[:2] + [None]*2
+    new = new[:2] + [None]*3
     model = add_pathway(m.copy(), *new)
     assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
-    assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)
+    reaction = model.reactions.get_by_id(new[1].keys()[0])
+    assert isinstance(reaction, cobra.Reaction)
+    assert reaction.reversibility == 1
+    assert reaction.upper_bound == 1000
+    assert reaction.lower_bound == -1000
