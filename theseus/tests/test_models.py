@@ -87,10 +87,10 @@ def test_carbons_for_exchange_reaction():
     assert carbons_for_exchange_reaction(model.reactions.get_by_id('EX_glc_e'))==6
 
 def test_add_pathway():
-    new = [ { 'ggpp_c': 'C20H33O7P2',
-              'phyto_c': 'C40H64',
-              'lyco_c': 'C40H56',
-              'lyco_e': 'C40H56' },
+    new = [ { 'ggpp_c': {'formula': 'C20H33O7P2', 'name': 'gg_gg_gg'},
+              'phyto_c': {'formula': 'C40H64'},
+              'lyco_c': {'formula': 'C40H56'},
+              'lyco_e': {'formula': 'C40H56'} },
             { 'FPS': { 'ipdp_c': -2,
                        'ppi_c': 1,
                        'grdp_c': 1 },
@@ -104,7 +104,7 @@ def test_add_pathway():
               'CRTE': 'Lycopene production'},
             { 'FPS': (20,1000) } ]
     m = load_model('iJO1366')
-    model = add_pathway(m.copy(), *new)
+    model = add_pathway(m.copy(), *new, check_mass_balance=True)
     assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
     reaction = model.reactions.get_by_id('CRTE')
     assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)
@@ -112,6 +112,11 @@ def test_add_pathway():
     assert reaction.upper_bound == 1000
     assert reaction.lower_bound == 0
     assert model.reactions.get_by_id('FPS').lower_bound==20
+
+    # test metabolite name
+    assert model.metabolites.get_by_id('ggpp_c').name == 'gg_gg_gg'
+    # test mass balance
+    assert model.reactions.get_by_id('FPS').check_mass_balance() == []
 
     del new[2]['FPS']
     model = add_pathway(m.copy(), *new)

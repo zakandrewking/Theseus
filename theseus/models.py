@@ -2,6 +2,7 @@
 import cobra
 import cobra.io
 from cobra.io.sbml import fix_legacy_id
+from cobra.core.Formula import Formula
 import os
 from os.path import join, abspath, dirname
 import re
@@ -123,6 +124,7 @@ def load_model(name, id_style='cobrapy'):
     
     # turn off carbon sources
     model = turn_off_carbon_sources(model)
+
     return model
 
 def get_formulas_from_names(model):
@@ -131,7 +133,7 @@ def get_formulas_from_names(model):
         if metabolite.formula!='': continue
         m = reg.match(metabolite.name)
         if m:
-            metabolite.formula = m.group(1)
+            metabolite.formula = Formula(m.group(1))
     return model
 
 def turn_off_carbon_sources(model):
@@ -212,13 +214,14 @@ def carbons_for_exchange_reaction(reaction):
     except AttributeError:
         return 0
 
-def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems, bounds):
+def add_pathway(model, new_metabolites, new_reactions, reversibility,
+                subsystems, bounds, check_mass_balance=False):
     """Add a pathway to the model. Reversibility defaults to reversible (1).
 
-    new_metabolites: e.g. { 'ggpp_c': 'C20H33O7P2',
-                            'phyto_c': 'C40H64',
-                            'lyco_c': 'C40H56',
-                            'lyco_e': 'C40H56' }
+    new_metabolites: e.g. { 'ggpp_c': {'formula': 'C20H33O7P2', 'name': 'name'},
+                            'phyto_c': {'formula': 'C40H64'}},
+                            'lyco_c': {'formula': 'C40H56'},
+                            'lyco_e': {'formula': 'C40H56'} }
     new_reactions: e.g. { 'FPS': { 'ipdp_c': -2,
                                    'ppi_c': 1,
                                    'grdp_c': 1 },
@@ -234,7 +237,9 @@ def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems
     """
     
     for k, v in new_metabolites.iteritems():
-        m = cobra.Metabolite(id=k, formula=v)
+        formula = Formula(v['formula']) if 'formula' in v else None
+        name = v['name'] if 'name' in v else None
+        m = cobra.Metabolite(id=k, formula=formula, name=name)
         model.add_metabolites([m])
         
     for name, mets in new_reactions.iteritems():
@@ -255,4 +260,8 @@ def add_pathway(model, new_metabolites, new_reactions, reversibility, subsystems
         if subsystems and (name in subsystems):
             r.subsystem = subsystems[name]
         model.add_reaction(r)
+        if check_mass_balance and 'EX_' not in name:
+            balance = model.reactions.get_by_id(name).check_mass_balance()
+            if balance != []:
+                raise Exception('Bad balance: %s' % str(balance))
     return model
