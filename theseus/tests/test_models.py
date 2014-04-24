@@ -18,6 +18,9 @@ def test_load_model():
     model = load_model('iJO1366')
     assert isinstance(model, cobra.core.Model)
 
+    model = load_model('RECON1')
+    assert isinstance(model, cobra.core.Model)    
+    
 def test_id_for_new_id_style():
     assert(id_for_new_id_style('EX_glc(r)', is_metabolite=False)=='EX_glc_r')
     assert(id_for_new_id_style('glucose[r]', is_metabolite=True)=='glucose_r')

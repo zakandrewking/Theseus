@@ -12,9 +12,9 @@ data_path = join(abspath(dirname(__file__)), 'data')
 
 def get_model_list():
     """Get the models that are available, as SBML, in data/models"""
-    return [x.replace('.xml', '') for x in
+    return [x.replace('.xml', '').replace('.mat', '') for x in
             os.listdir(join(data_path, 'models'))
-            if '.xml' in x]
+            if '.xml' in x or '.mat' in x]
 
 def check_for_model(name):
     """Check for model, case insensitive, and ignore periods and underscores"""
@@ -112,7 +112,10 @@ def load_model(name, id_style='cobrapy'):
         with open(join(data_path, 'model_pickles', name+'.pickle'), 'r') as f:
             model = pickle.load(f)
     except:
-        model = cobra.io.read_sbml_model(join(data_path, 'models', name+'.xml'))
+        try:
+            model = cobra.io.load_matlab_model(join(data_path, 'models', name+'.mat'))
+        except:
+            model = cobra.io.read_sbml_model(join(data_path, 'models', name+'.xml'))
         with open(join(data_path, 'model_pickles', name+'.pickle'), 'w') as f:
             pickle.dump(model, f)
 
@@ -143,7 +146,8 @@ def turn_off_carbon_sources(model):
             reaction.lower_bound = 0
     return model
 
-def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10, id_style='cobrapy'):
+def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10,
+                id_style='cobrapy', fix_iJO1366=False):
     """Set up the model with environmntal parameters.
 
     model: a cobra model
@@ -180,8 +184,10 @@ def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10, id
         for r in ['CAT', 'SPODM', 'SPODMpp']:
             model.reactions.get_by_id(r).lower_bound = 0
             model.reactions.get_by_id(r).upper_bound = 0
+    if fix_iJO1366 and str(model)=='iJO1366':
         for r in ['ACACT2r']:
             model.reactions.get_by_id(r).upper_bound = 0
+        print 'made ACACT2r irreversible'
 
     # TODO hydrogen reaction for ijo
             
