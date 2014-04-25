@@ -220,8 +220,8 @@ def carbons_for_exchange_reaction(reaction):
     except AttributeError:
         return 0
 
-def add_pathway(model, new_metabolites, new_reactions, reversibility,
-                subsystems, bounds, check_mass_balance=False):
+def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
+                check_mass_balance=False, ignore_repeats=False):
     """Add a pathway to the model. Reversibility defaults to reversible (1).
 
     new_metabolites: e.g. { 'ggpp_c': {'formula': 'C20H33O7P2', 'name': 'name'},
@@ -235,10 +235,10 @@ def add_pathway(model, new_metabolites, new_reactions, reversibility,
                                     'frdp_c': -1,
                                     'ggpp_c': 1,
                                     'ppi_c': 1 } }
-    reversibility: e.g. { 'FPS': 0,
-                           'CRTE': 0 }
     subsystems: e.g. { 'FPS': 'Lycopene production',
                        'CRTE': 'Lycopene production' }
+    bound: e.g. { 'FPS': (0, 0),
+                  'CRTE': (0, 1000) }
 
     """
     
@@ -246,7 +246,12 @@ def add_pathway(model, new_metabolites, new_reactions, reversibility,
         formula = Formula(v['formula']) if 'formula' in v else None
         name = v['name'] if 'name' in v else None
         m = cobra.Metabolite(id=k, formula=formula, name=name)
-        model.add_metabolites([m])
+        try:
+            model.add_metabolites([m])
+        except Exception as err:
+            if (not ignore_repeats or
+                "already in the model" not in str(err)):
+                raise(err)
         
     for name, mets in new_reactions.iteritems():
         r = cobra.Reaction(name=name)
@@ -254,18 +259,19 @@ def add_pathway(model, new_metabolites, new_reactions, reversibility,
         for k, v in mets.iteritems():
             m_obj[model.metabolites.get_by_id(k)] = v
         r.add_metabolites(m_obj)
-        if reversibility and (name in reversibility):
-            r.reversibility = reversibility[name]
-        else:
-            r.reversibility = 1
         if bounds and (name in bounds):
             r.lower_bound, r.upper_bound = bounds[name]
         else:
             r.upper_bound = 1000
-            r.lower_bound = -1000 if r.reversibility==1 else 0
+            r.lower_bound = -1000
         if subsystems and (name in subsystems):
             r.subsystem = subsystems[name]
-        model.add_reaction(r)
+        try:
+            model.add_reaction(r)
+        except Exception as err:
+            if (not ignore_repeats or
+                "already in the model" not in str(err)):
+                raise(err)
         if check_mass_balance and 'EX_' not in name:
             balance = model.reactions.get_by_id(name).check_mass_balance()
             if balance != []:

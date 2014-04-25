@@ -101,8 +101,6 @@ def test_add_pathway():
                         'frdp_c': -1,
                         'ggpp_c': 1,
                         'ppi_c': 1 }},
-            { 'FPS': 0,
-              'CRTE': 0 },
             { 'FPS': 'Lycopene production',
               'CRTE': 'Lycopene production'},
             { 'FPS': (20,1000) } ]
@@ -111,10 +109,11 @@ def test_add_pathway():
     assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
     reaction = model.reactions.get_by_id('CRTE')
     assert isinstance(model.reactions.get_by_id(new[1].keys()[0]), cobra.Reaction)
-    assert reaction.reversibility == 0
+    assert reaction.reversibility == True
     assert reaction.upper_bound == 1000
-    assert reaction.lower_bound == 0
-    assert model.reactions.get_by_id('FPS').lower_bound==20
+    assert reaction.lower_bound == -1000
+    assert model.reactions.get_by_id('FPS').lower_bound == 20
+    assert model.reactions.get_by_id('FPS').reversibility == False
 
     # test metabolite name
     assert model.metabolites.get_by_id('ggpp_c').name == 'gg_gg_gg'
@@ -131,6 +130,12 @@ def test_add_pathway():
     assert isinstance(model.metabolites.get_by_id(new[0].keys()[0]), cobra.Metabolite)
     reaction = model.reactions.get_by_id(new[1].keys()[0])
     assert isinstance(reaction, cobra.Reaction)
-    assert reaction.reversibility == 1
     assert reaction.upper_bound == 1000
     assert reaction.lower_bound == -1000
+
+    # test ignore repeats
+    model = add_pathway(m.copy(), *new)
+    with pytest.raises(Exception):
+        model = add_pathway(model, *new)
+    model = add_pathway(model, *new, ignore_repeats=True)
+    
