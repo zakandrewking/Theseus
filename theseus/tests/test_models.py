@@ -53,7 +53,9 @@ def test_convert_ids():
 
 def test_get_formulas_from_names():
     model = load_model('iAF1260')
-    assert model.metabolites.get_by_id('acald_c').formula == 'C2H4O'
+    assert model.metabolites.get_by_id('acald_c').formula.elements['C'] == 2
+    assert model.metabolites.get_by_id('acald_c').formula.elements['H'] == 4
+    assert model.metabolites.get_by_id('acald_c').formula.elements['O'] == 1
         
 def test_turn_off_carbon_sources():
     for model_name in 'iJO1366', 'iAF1260', 'E coli core':
@@ -88,6 +90,8 @@ def test_turn_on_subsystem():
 def test_carbons_for_exchange_reaction():
     model = load_model('iJO1366')
     assert carbons_for_exchange_reaction(model.reactions.get_by_id('EX_glc_e'))==6
+    assert carbons_for_exchange_reaction(model.reactions.get_by_id('EX_ac_e'))==2
+    assert carbons_for_exchange_reaction(model.reactions.get_by_id('EX_for_e'))==1
 
 def test_add_pathway():
     new = [ { 'ggpp_c': {'formula': 'C20H33O7P2', 'name': 'gg_gg_gg'},

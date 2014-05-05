@@ -133,7 +133,9 @@ def load_model(name, id_style='cobrapy'):
 def get_formulas_from_names(model):
     reg = re.compile(r'.*_([A-Za-z0-9]+)$')
     for metabolite in model.metabolites:
-        if metabolite.formula!='': continue
+        if (metabolite.formula is not None
+            and metabolite.formula.formula!=''
+            and metabolite.formula.formula is not None): continue
         m = reg.match(metabolite.name)
         if m:
             metabolite.formula = Formula(m.group(1))
@@ -142,6 +144,8 @@ def get_formulas_from_names(model):
 def turn_off_carbon_sources(model):
     for reaction in model.reactions:
         if 'EX_' not in str(reaction): continue
+        if str(reaction) == 'EX_glc_e':
+            print 'GLC: ' + str(carbons_for_exchange_reaction(reaction))
         if carbons_for_exchange_reaction(reaction) > 0:
             reaction.lower_bound = 0
     return model
@@ -214,11 +218,15 @@ def carbons_for_exchange_reaction(reaction):
         raise Exception('%s not an exchange reaction' % str(reaction))
     
     metabolite = reaction._metabolites.iterkeys().next()
-    match = re.match(r'C([0-9]+)', str(metabolite.formula))
     try:
-        return int(match.group(1))
-    except AttributeError:
+        return metabolite.formula.elements['C']
+    except KeyError:
         return 0
+    # match = re.match(r'C([0-9]+)', str(metabolite.formula))
+    # try:
+    #     return int(match.group(1))
+    # except AttributeError:
+    #     return 0
 
 def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                 check_mass_balance=False, ignore_repeats=False):
