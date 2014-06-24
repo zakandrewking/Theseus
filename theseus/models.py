@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import cobra
 import cobra.io
-from cobra.io.sbml import fix_legacy_id
 from cobra.core.Formula import Formula
 import os
 from os.path import join, abspath, dirname
@@ -65,7 +64,6 @@ def convert_ids(model, new_id_style):
     simpheny: EX_lac-L(e)
 
     """
-
     # loop through the ids:
 
     # this code comes from cobra.io.sbml
@@ -144,8 +142,6 @@ def get_formulas_from_names(model):
 def turn_off_carbon_sources(model):
     for reaction in model.reactions:
         if 'EX_' not in str(reaction): continue
-        if str(reaction) == 'EX_glc_e':
-            print 'GLC: ' + str(carbons_for_exchange_reaction(reaction))
         if carbons_for_exchange_reaction(reaction) > 0:
             reaction.lower_bound = 0
     return model
@@ -285,3 +281,24 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
             if balance != []:
                 raise Exception('Bad balance: %s' % str(balance))
     return model
+    
+def fix_legacy_id(id, use_hyphens=False):
+    id = id.replace('_DASH_', '__')
+    id = id.replace('_FSLASH_', '/')
+    id = id.replace('_BSLASH_', "\\")
+    id = id.replace('_LPAREN_', '(')
+    id = id.replace('_LSQBKT_', '[')
+    id = id.replace('_RSQBKT_', ']')
+    id = id.replace('_RPAREN_', ')')
+    id = id.replace('_COMMA_', ',')
+    id = id.replace('_PERIOD_', '.')
+    id = id.replace('_APOS_', "'")
+    id = id.replace('&amp;', '&')
+    id = id.replace('&lt;', '<')
+    id = id.replace('&gt;', '>')
+    id = id.replace('&quot;', '"')
+    if use_hyphens:
+        id = id.replace('__', '-')
+    else:
+        id = id.replace("-", "__")
+    return id
