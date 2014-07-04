@@ -25,7 +25,7 @@ def check_for_model(name):
     return None
 
 # the regex to separate the base id, the chirality ('_L') and the compartment ('_c')
-reg = re.compile(r'(.*?)(?:(.*[^_])_([LD]))?[_\(\[]([a-z])[_\)\]]?$')
+reg = re.compile(r'(.*?)(?:(.*[^_])_([LDSR]))?[_\(\[]([a-z])[_\)\]]?$')
 def id_for_new_id_style(old_id, is_metabolite=False, new_id_style='cobrapy'):
     """ Get the new style id"""
 
