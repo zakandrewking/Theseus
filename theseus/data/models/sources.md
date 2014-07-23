@@ -31,8 +31,18 @@ publication: http://systemsbiology.ucsd.edu/Downloads
 
 # RECON1
 file: RECON1.xml
-bigg.ucsd.edu
+source: bigg.ucsd.edu
 
 # iMM904
 file: iMM904.xml
 publication: 10.1186/1752-0509-3-37
+
+# iJR904
+file: iJO904.xml
+source: bigg.ucsd.edu
+TODO: fix model.id
+
+# iJE660b
+file: iJE660b.mat
+source: Simpheny database
+NOTE: currently has not biomass function
