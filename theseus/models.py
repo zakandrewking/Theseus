@@ -55,6 +55,10 @@ def id_for_new_id_style(old_id, is_metabolite=False, new_id_style='cobrapy'):
         # if the chirality is not joined by two underscores, then fix that
         a = "__".join(m.groups()[1:3])
         new_id = join_parts(a, m.group(4))
+
+    # deal with inconsistent notation of (sec) vs. [sec] in iJO1366 versions
+    new_id = new_id.replace('[sec]', '_sec_').replace('(sec)', '_sec_')
+        
     return new_id
 
 def convert_ids(model, new_id_style):
