@@ -92,13 +92,21 @@ def convert_ids(model, new_id_style):
     model.metabolites._generate_index()
 
     # separate ids and compartments, and convert to the new_id_style
-    for reaction in model.reactions:
-        reaction.id = id_for_new_id_style(reaction.id, new_id_style=new_id_style)
-    model.reactions._generate_index()
     for metabolite in model.metabolites:
         metabolite.id = id_for_new_id_style(metabolite.id, is_metabolite=True, new_id_style=new_id_style)
     model.metabolites._generate_index()
-    
+    for reaction in model.reactions:
+        if len(reaction._metabolites) == 1:
+            if reaction.id.startswith("EX_"):
+                reaction.id = "EX_" + list(reaction._metabolites)[0].id
+            elif reaction.id.startswith("DM_"):
+                reaction.id = "DM_" + list(reaction._metabolites)[0].id
+            else:
+                reaction.id = id_for_new_id_style(reaction.id, new_id_style=new_id_style)
+        else:
+            reaction.id = id_for_new_id_style(reaction.id, new_id_style=new_id_style)
+    model.reactions._generate_index()
+ 
     return model
 
 def load_model(name, id_style='cobrapy'):
