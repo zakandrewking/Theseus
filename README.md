@@ -1,4 +1,4 @@
 Theseus
 =======
 
-An API for exchanging biological identifiers.
+Scripts for accessing and reconstructing genome-scale models.

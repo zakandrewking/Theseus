@@ -58,7 +58,7 @@ def id_for_new_id_style(old_id, is_metabolite=False, new_id_style='cobrapy'):
 
     # deal with inconsistent notation of (sec) vs. [sec] in iJO1366 versions
     new_id = new_id.replace('[sec]', '_sec_').replace('(sec)', '_sec_')
-        
+
     return new_id
 
 def convert_ids(model, new_id_style):
@@ -98,7 +98,7 @@ def convert_ids(model, new_id_style):
     for metabolite in model.metabolites:
         metabolite.id = id_for_new_id_style(metabolite.id, is_metabolite=True, new_id_style=new_id_style)
     model.metabolites._generate_index()
-    
+
     return model
 
 def load_model(name, id_style='cobrapy'):
@@ -126,7 +126,7 @@ def load_model(name, id_style='cobrapy'):
 
     # extract metabolite formulas from names (e.g. for iAF1260)
     model = get_formulas_from_names(model)
-    
+
     # turn off carbon sources
     model = turn_off_carbon_sources(model)
 
@@ -174,15 +174,15 @@ def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10,
     elif isinstance(substrate_reactions, list):
         for r in substrate_reactions:
             model.reactions.get_by_id(r).lower_bound = -abs(sur)
-    elif isinstance(substrate_reactions, str):                
+    elif isinstance(substrate_reactions, str):
         model.reactions.get_by_id(substrate_reactions).lower_bound = -abs(sur)
     else: raise Exception('bad substrate_reactions argument')
-        
+
     if aerobic:
         model.reactions.get_by_id(o2).lower_bound = -abs(max_our)
     else:
         model.reactions.get_by_id(o2).lower_bound = 0
-        
+
     # model specific setup
     if str(model)=='iJO1366' and aerobic==False:
         for r in ['CAT', 'SPODM', 'SPODMpp']:
@@ -194,10 +194,14 @@ def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10,
         print 'made ACACT2r irreversible'
 
     # TODO hydrogen reaction for ijo
-            
+
     if str(model)=='iMM904' and aerobic==False:
-        necessary_ex = ['EX_ergst(e)', 'EX_zymst(e)', 'EX_hdcea(e)',
-                        'EX_ocdca(e)', 'EX_ocdcea(e)', 'EX_ocdcya(e)']
+        if 'EX_ergst(e)' in model.reactions:
+            necessary_ex = ['EX_ergst(e)', 'EX_zymst(e)', 'EX_hdcea(e)',
+                            'EX_ocdca(e)', 'EX_ocdcea(e)', 'EX_ocdcya(e)']
+        else:
+            necessary_ex = ['EX_ergst_e', 'EX_zymst_e', 'EX_hdcea_e',
+                            'EX_ocdca_e', 'EX_ocdcea_e', 'EX_ocdcya_e']
         for r in necessary_ex:
             rxn = model.reactions.get_by_id(r)
             rxn.lower_bound = -1000
@@ -216,7 +220,7 @@ def turn_on_subsystem(model, subsytem):
 def carbons_for_exchange_reaction(reaction):
     if len(reaction._metabolites) > 1:
         raise Exception('%s not an exchange reaction' % str(reaction))
-    
+
     metabolite = reaction._metabolites.iterkeys().next()
     try:
         return metabolite.formula.elements['C']
@@ -249,7 +253,7 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                   'CRTE': (0, 1000) }
 
     """
-    
+
     for k, v in new_metabolites.iteritems():
         formula = Formula(v['formula']) if 'formula' in v else None
         name = v['name'] if 'name' in v else None
@@ -260,7 +264,7 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
             if (not ignore_repeats or
                 "already in the model" not in str(err)):
                 raise(err)
-        
+
     for name, mets in new_reactions.iteritems():
         r = cobra.Reaction(name=name)
         m_obj = {}
@@ -285,7 +289,7 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
             if balance != []:
                 raise Exception('Bad balance: %s' % str(balance))
     return model
-    
+
 def fix_legacy_id(id, use_hyphens=False):
     id = id.replace('_DASH_', '__')
     id = id.replace('_FSLASH_', '/')
