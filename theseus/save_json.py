@@ -4,7 +4,7 @@ from theseus import load_model
 
 try:
     name = argv[1]
-except KeyError:
+except IndexError:
     print('Usage python -m theseus.save_json iJO1366')
     exit()
 

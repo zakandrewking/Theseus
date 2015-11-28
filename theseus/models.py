@@ -136,8 +136,7 @@ def get_formulas_from_names(model):
     reg = re.compile(r'.*_([A-Za-z0-9]+)$')
     for metabolite in model.metabolites:
         if (metabolite.formula is not None
-            and metabolite.formula.formula!=''
-            and metabolite.formula.formula is not None): continue
+            and str(metabolite.formula).strip() != ''): continue
         m = reg.match(metabolite.name)
         if m:
             metabolite.formula = Formula(m.group(1))
