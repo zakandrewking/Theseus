@@ -11,9 +11,9 @@ data_path = join(abspath(dirname(__file__)), 'data')
 
 def get_model_list():
     """Get the models that are available, as SBML, in data/models"""
-    return [x.replace('.xml', '').replace('.mat', '') for x in
+    return [x.replace('.xml', '').replace('.mat', '').replace('.json', '') for x in
             os.listdir(join(data_path, 'models'))
-            if '.xml' in x or '.mat' in x]
+            if '.xml' in x or '.mat' in x or '.json' in x]
 
 def check_for_model(name):
     """Check for model, case insensitive, and ignore periods and underscores"""
@@ -117,7 +117,10 @@ def load_model(name, id_style='cobrapy'):
         try:
             model = cobra.io.load_matlab_model(join(data_path, 'models', name+'.mat'))
         except:
-            model = cobra.io.read_sbml_model(join(data_path, 'models', name+'.xml'))
+            try:
+                model = cobra.io.read_sbml_model(join(data_path, 'models', name+'.xml'))
+            except:
+                model = cobra.io.load_json_model(join(data_path, 'models', name+'.json'))
         with open(join(data_path, 'model_pickles', name+'.pickle'), 'w') as f:
             pickle.dump(model, f)
 
@@ -222,18 +225,18 @@ def carbons_for_exchange_reaction(reaction):
 
     metabolite = reaction._metabolites.iterkeys().next()
     try:
-        return metabolite.formula.elements['C']
+        return metabolite.elements['C']
     except KeyError:
         return 0
-    # match = re.match(r'C([0-9]+)', str(metabolite.formula))
-    # try:
-    #     return int(match.group(1))
-    # except AttributeError:
-    #     return 0
+
 
 def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
-                check_mass_balance=False, ignore_repeats=False):
+                check_mass_balance=False, check_charge_balance=False,
+                ignore_repeats=False):
     """Add a pathway to the model. Reversibility defaults to reversible (1).
+
+    check_charge_balance: Only works if check_mass_balance is True.
+
 
     new_metabolites: e.g. { 'ggpp_c': {'formula': 'C20H33O7P2', 'name': 'name'},
                             'phyto_c': {'formula': 'C40H64'}},
@@ -254,9 +257,10 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
     """
 
     for k, v in new_metabolites.iteritems():
-        formula = Formula(v['formula']) if 'formula' in v else None
-        name = v['name'] if 'name' in v else None
-        m = cobra.Metabolite(id=k, formula=formula, name=name)
+        m = cobra.Metabolite(id=k,
+                             formula=v.get('formula', None),
+                             name=v.get('name', None))
+        m.charge = v.get('charge', None)
         try:
             model.add_metabolites([m])
         except Exception as err:
@@ -265,7 +269,7 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                 raise(err)
 
     for name, mets in new_reactions.iteritems():
-        r = cobra.Reaction(name=name)
+        r = cobra.Reaction(name)
         m_obj = {}
         for k, v in mets.iteritems():
             m_obj[model.metabolites.get_by_id(k)] = v
@@ -285,9 +289,12 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                 raise(err)
         if check_mass_balance and 'EX_' not in name:
             balance = model.reactions.get_by_id(name).check_mass_balance()
-            if balance != []:
+            if not check_charge_balance and 'charge' in balance:
+                del balance['charge']
+            if len(balance) > 0:
                 raise Exception('Bad balance: %s' % str(balance))
     return model
+
 
 def fix_legacy_id(id, use_hyphens=False):
     id = id.replace('_DASH_', '__')
