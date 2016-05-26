@@ -19,7 +19,7 @@ bounds = {'DHORDfum': (0, 1000),
           'MALt3pp': (0, 1000),
           'CITt3pp': (0, 1000)}
 iAF1260b = theseus.add_pathway(iAF1260.copy(), {}, new_reactions, {}, bounds, check_mass_balance=True)
-```						 
+```
 
 # iJO1366
 file: msb201165-sup-0003.xml
@@ -38,11 +38,11 @@ file: iMM904.xml
 publication: 10.1186/1752-0509-3-37
 
 # iJR904
-file: iJO904.xml
+file: iJR904.xml
 source: bigg.ucsd.edu
-TODO: fix model.id
+CHANGES: Fixed model ID and changed EX_glc_e to EX_glc__D_e
 
 # iJE660b
 file: iJE660b.mat
 source: Simpheny database
-NOTE: currently has not biomass function
+NOTE: currently has no biomass function

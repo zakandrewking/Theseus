@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import cobra
 import cobra.io
 from cobra.core.Formula import Formula
@@ -6,6 +7,8 @@ import os
 from os.path import join, abspath, dirname
 import re
 import cPickle as pickle
+from minime import MetabolicReaction, StoichiometricData
+from minime.solve.symbolic import compile_expressions
 
 data_path = join(abspath(dirname(__file__)), 'data')
 
@@ -101,8 +104,28 @@ def convert_ids(model, new_id_style):
 
     return model
 
-def load_model(name, id_style='cobrapy'):
+def load_model_me(unmodified_me=False):
+    import cloudpickle
+
+    def me_no_glucose_ex(me):
+        me.reactions.get_by_id('EX_glc__D_e').lower_bound = 0
+        return me
+
+    with open(join(data_path, 'models', 'prototype_51.pickle'), 'rb') as f:
+        me = pickle.load(f)
+
+    with open(join(data_path, 'models', 'prototype_51_expressions.pickle'), 'rb') as f:
+        me.expressions = cloudpickle.load(f)
+
+    return me if unmodified_me else me_no_glucose_ex(me)
+
+def load_model(name, id_style='cobrapy', unmodified_me=False):
     """Load a model, and give it a particular id style"""
+
+    if name == 'ME':
+        me = load_model_me(unmodified_me)
+        me.id = name
+        return me
 
     # check for model
     name = check_for_model(name)
@@ -111,7 +134,7 @@ def load_model(name, id_style='cobrapy'):
 
     # load the model pickle, or, if not, the sbml
     try:
-        with open(join(data_path, 'model_pickles', name+'.pickle'), 'r') as f:
+        with open(join(data_path, 'model_pickles', name+'.pickle'), 'rb') as f:
             model = pickle.load(f)
     except:
         try:
@@ -147,13 +170,12 @@ def get_formulas_from_names(model):
 
 def turn_off_carbon_sources(model):
     for reaction in model.reactions:
-        if 'EX_' not in str(reaction): continue
+        if not reaction.id.startswith('EX_'): continue
         if carbons_for_exchange_reaction(reaction) > 0:
             reaction.lower_bound = 0
     return model
 
-def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10,
-                id_style='cobrapy', fix_iJO1366=False):
+def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10):
     """Set up the model with environmntal parameters.
 
     model: a cobra model
@@ -166,9 +188,6 @@ def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10,
     id_style: 'cobrapy' or 'simpheny'.
 
     """
-    if id_style=='cobrapy': o2 = 'EX_o2_e'
-    elif id_style=='simpheny': o2 = 'EX_o2(e)'
-    else: raise Exception('Invalid id_style')
 
     if isinstance(substrate_reactions, dict):
         for r, v in substrate_reactions.iteritems():
@@ -180,30 +199,24 @@ def setup_model(model, substrate_reactions, aerobic=True, sur=10, max_our=10,
         model.reactions.get_by_id(substrate_reactions).lower_bound = -abs(sur)
     else: raise Exception('bad substrate_reactions argument')
 
+    o2 = 'EX_o2_e'
     if aerobic:
         model.reactions.get_by_id(o2).lower_bound = -abs(max_our)
     else:
         model.reactions.get_by_id(o2).lower_bound = 0
 
     # model specific setup
-    if str(model)=='iJO1366' and aerobic==False:
+    if str(model) == 'iJO1366' and aerobic is False:
         for r in ['CAT', 'SPODM', 'SPODMpp']:
             model.reactions.get_by_id(r).lower_bound = 0
             model.reactions.get_by_id(r).upper_bound = 0
-    if fix_iJO1366 and str(model)=='iJO1366':
-        for r in ['ACACT2r']:
-            model.reactions.get_by_id(r).upper_bound = 0
-        print 'made ACACT2r irreversible'
 
-    # TODO hydrogen reaction for ijo
+    elif str(model) == 'iJR904':
+        model.objective = {model.reactions.get_by_id('BIOMASS_Ecoli'): 1}
 
-    if str(model)=='iMM904' and aerobic==False:
-        if 'EX_ergst(e)' in model.reactions:
-            necessary_ex = ['EX_ergst(e)', 'EX_zymst(e)', 'EX_hdcea(e)',
-                            'EX_ocdca(e)', 'EX_ocdcea(e)', 'EX_ocdcya(e)']
-        else:
-            necessary_ex = ['EX_ergst_e', 'EX_zymst_e', 'EX_hdcea_e',
-                            'EX_ocdca_e', 'EX_ocdcea_e', 'EX_ocdcya_e']
+    elif str(model) == 'iMM904' and aerobic is False:
+        necessary_ex = ['EX_ergst_e', 'EX_zymst_e', 'EX_hdcea_e', 'EX_ocdca_e',
+                        'EX_ocdcea_e', 'EX_ocdcya_e']
         for r in necessary_ex:
             rxn = model.reactions.get_by_id(r)
             rxn.lower_bound = -1000
@@ -229,6 +242,25 @@ def carbons_for_exchange_reaction(reaction):
     except KeyError:
         return 0
 
+def add_me_reaction(model, reaction_id, stoichiometry, bounds=(-1000.0, 1000.0),
+                    keff=65.0):
+    """Add a new reaction to the ME model.
+
+    stoichiometry: {metabolite_id: coefficient}
+
+    """
+    data = StoichiometricData(reaction_id, model)
+    data.lower_bound, data.upper_bound = bounds
+    data._stoichiometry = stoichiometry
+
+    for rev_str, reverse in ('FWD', False), ('REV', True):
+        reaction = MetabolicReaction('%s_%s_CPLX_dummy' % (reaction_id, rev_str))
+        reaction.keff = keff
+        reaction.stoichiometric_data = data
+        reaction.reverse = reverse
+        reaction.complex_data = model.complex_data.CPLX_dummy
+        model.add_reaction(reaction)
+        reaction.update()
 
 def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                 check_mass_balance=False, check_charge_balance=False,
@@ -268,31 +300,48 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                 "already in the model" not in str(err)):
                 raise(err)
 
+    has_new_me_reactions = False
     for name, mets in new_reactions.iteritems():
-        r = cobra.Reaction(name)
-        m_obj = {}
-        for k, v in mets.iteritems():
-            m_obj[model.metabolites.get_by_id(k)] = v
-        r.add_metabolites(m_obj)
         if bounds and (name in bounds):
-            r.lower_bound, r.upper_bound = bounds[name]
+            r_bounds = bounds[name]
         else:
-            r.upper_bound = 1000
-            r.lower_bound = -1000
-        if subsystems and (name in subsystems):
-            r.subsystem = subsystems[name]
-        try:
+            r_bounds = (-1000, 1000)
+
+        if model.id == 'ME' and not name.startswith('EX_'):
+            # me reaction
+            if ignore_repeats and ('%_FWD_CPLX_dummy' % name in model.reactions or
+                                   '%_REV_CPLX_dummy' % name in model.reactions):
+                continue
+            print('Adding ME reactions for %s' % name)
+            add_me_reaction(model, name, mets, r_bounds)
+            has_new_me_reactions = True
+        else:
+            # m reaction
+            if ignore_repeats and name in model.reactions:
+                continue
+            r = cobra.Reaction(name)
+            m_obj = {}
+            for k, v in mets.iteritems():
+                m_obj[model.metabolites.get_by_id(k)] = v
+            r.add_metabolites(m_obj)
+            r.lower_bound, r.upper_bound = r_bounds
+            if subsystems and (name in subsystems):
+                r.subsystem = subsystems[name]
             model.add_reaction(r)
-        except Exception as err:
-            if (not ignore_repeats or
-                "already in the model" not in str(err)):
-                raise(err)
-        if check_mass_balance and 'EX_' not in name:
-            balance = model.reactions.get_by_id(name).check_mass_balance()
-            if not check_charge_balance and 'charge' in balance:
-                del balance['charge']
-            if len(balance) > 0:
-                raise Exception('Bad balance: %s' % str(balance))
+
+            # mass balance
+            if check_mass_balance and 'EX_' not in name:
+                balance = model.reactions.get_by_id(name).check_mass_balance()
+                if not check_charge_balance and 'charge' in balance:
+                    del balance['charge']
+                if len(balance) > 0:
+                    raise Exception('Bad balance: %s' % str(balance))
+
+    # recompile the expressions
+    if has_new_me_reactions:
+        print('Recompiling expressions')
+        model.expressions = compile_expressions(model)
+
     return model
 
 
