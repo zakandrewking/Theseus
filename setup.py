@@ -1,7 +1,4 @@
-try:
-    from setuptools import setup, Command
-except:
-    from distutils.core import setup, Command
+from setuptools import setup, Command, find_packages
 
 setup(
     name='theseus',
@@ -14,6 +11,6 @@ setup(
         'Programming Language :: Python :: 3',
         'Operating System :: OS Independent',
     ],
-    packages=['theseus'],
+    packages=find_packages(),
     install_requires=['cobra>=0.4.0b4'],
 )
