@@ -264,10 +264,13 @@ def add_me_reaction(model, reaction_id, stoichiometry, bounds=(-1000.0, 1000.0),
 
 def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                 check_mass_balance=False, check_charge_balance=False,
-                ignore_repeats=False):
+                ignore_repeats=False, recompile_expressions=True):
     """Add a pathway to the model. Reversibility defaults to reversible (1).
 
     check_charge_balance: Only works if check_mass_balance is True.
+
+    recompile_expressions: If True, then recompile_expressions when new ME
+    reactions are added.
 
 
     new_metabolites: e.g. { 'ggpp_c': {'formula': 'C20H33O7P2', 'name': 'name'},
@@ -338,7 +341,7 @@ def add_pathway(model, new_metabolites, new_reactions, subsystems, bounds,
                     raise Exception('Bad balance: %s' % str(balance))
 
     # recompile the expressions
-    if has_new_me_reactions:
+    if has_new_me_reactions and recompile_expressions:
         print('Recompiling expressions')
         model.expressions = compile_expressions(model)
 
