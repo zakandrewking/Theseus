@@ -7,8 +7,8 @@ import os
 from os.path import join, abspath, dirname
 import re
 import cPickle as pickle
-from minime import MetabolicReaction, StoichiometricData
-from minime.solve.symbolic import compile_expressions
+from cobrame import MetabolicReaction, StoichiometricData
+from cobrame.solve.symbolic import compile_expressions
 
 data_path = join(abspath(dirname(__file__)), 'data')
 
@@ -111,10 +111,10 @@ def load_model_me(unmodified_me=False):
         me.reactions.get_by_id('EX_glc__D_e').lower_bound = 0
         return me
 
-    with open(join(data_path, 'models', 'prototype_51.pickle'), 'rb') as f:
+    with open(join(data_path, 'models', 'prototype_65.pickle'), 'rb') as f:
         me = pickle.load(f)
 
-    with open(join(data_path, 'models', 'prototype_51_expressions.pickle'), 'rb') as f:
+    with open(join(data_path, 'models', 'prototype_65_expressions.pickle'), 'rb') as f:
         me.expressions = cloudpickle.load(f)
 
     return me if unmodified_me else me_no_glucose_ex(me)
