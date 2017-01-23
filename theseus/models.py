@@ -111,11 +111,8 @@ def load_model_me(unmodified_me=False):
         me.reactions.get_by_id('EX_glc__D_e').lower_bound = 0
         return me
 
-    with open(join(data_path, 'models', 'prototype_65.pickle'), 'rb') as f:
+    with open(join(data_path, 'models', 'prototype_67.pickle'), 'rb') as f:
         me = pickle.load(f)
-
-    with open(join(data_path, 'models', 'prototype_65_expressions.pickle'), 'rb') as f:
-        me.expressions = cloudpickle.load(f)
 
     return me if unmodified_me else me_no_glucose_ex(me)
 
