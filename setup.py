@@ -12,5 +12,5 @@ setup(
         'Operating System :: OS Independent',
     ],
     packages=find_packages(),
-    install_requires=['cobra>=0.4.0b4'],
+    install_requires=['cobra>=0.5.0', 'cloudpickle>=0.2.2'],
 )

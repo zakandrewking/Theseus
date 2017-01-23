@@ -1,1 +1,1 @@
-from models import *
+from theseus.models import *

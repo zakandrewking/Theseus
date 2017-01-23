@@ -6,9 +6,14 @@ from cobra.core.Formula import Formula
 import os
 from os.path import join, abspath, dirname
 import re
-import cPickle as pickle
-from cobrame import MetabolicReaction, StoichiometricData
-from cobrame.solve.symbolic import compile_expressions
+import pickle
+from six import iterkeys
+
+try:
+    from cobrame import MetabolicReaction, StoichiometricData
+    from cobrame.solve.symbolic import compile_expressions
+except ImportError:
+    pass
 
 data_path = join(abspath(dirname(__file__)), 'data')
 
@@ -233,7 +238,7 @@ def carbons_for_exchange_reaction(reaction):
     if len(reaction._metabolites) > 1:
         raise Exception('%s not an exchange reaction' % str(reaction))
 
-    metabolite = reaction._metabolites.iterkeys().next()
+    metabolite = next(iterkeys(reaction._metabolites))
     try:
         return metabolite.elements['C']
     except KeyError:

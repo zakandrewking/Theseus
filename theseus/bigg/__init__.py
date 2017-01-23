@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
 
-from download import download_model
+from theseus.bigg.download import download_model
